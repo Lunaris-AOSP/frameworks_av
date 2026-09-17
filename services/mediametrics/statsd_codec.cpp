@@ -180,8 +180,7 @@ static void parseVector(const std::string &str, std::vector<int32_t> *vector) {
 bool statsd_codec(const std::shared_ptr<const mediametrics::Item>& item,
         const std::shared_ptr<mediametrics::StatsdLog>& statsdLog)
 {
-    bool statsd_enabled = false;
-    if (item == nullptr || !statsd_enabled) return false;
+    if (item == nullptr) return false;
 
     AStatsEvent* event = AStatsEvent_obtain();
     AStatsEvent_setAtomId(event, stats::media_metrics::MEDIA_CODEC_REPORTED);
