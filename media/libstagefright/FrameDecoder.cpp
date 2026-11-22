@@ -815,8 +815,28 @@ status_t FrameDecoder::handleOutputBufferAsync(int32_t index, int64_t timeUs) {
             return NO_INIT;
         }
 
-        uint8_t* frameData = converter.wrap()->data();
-        sp<ABuffer> imageData = converter.imageData();
+        // wrap() only succeeds when the graphic buffer is laid out exactly as the
+        // MediaImage2 expects. Some decoders (e.g. 10-bit or tiled output) return
+        // layouts that cannot be wrapped, so fall back to copying the frame.
+        uint8_t* frameData = nullptr;
+        sp<ABuffer> imageData;
+        sp<ABuffer> copiedBuffer;
+        sp<ABuffer> wrapped = converter.wrap();
+        if (wrapped != nullptr) {
+            frameData = wrapped->data();
+            imageData = converter.imageData();
+        } else {
+            copiedBuffer = new ABuffer(converter.backBufferSize());
+            if (!converter.setBackBuffer(copiedBuffer)
+                    || converter.copyToMediaImage() != OK) {
+                ALOGE("Failed to copy decoded frame");
+                mDecoder->releaseOutputBuffer(index);
+                onDecoderError(NO_INIT);
+                return NO_INIT;
+            }
+            frameData = copiedBuffer->data();
+            imageData = converter.imageData();
+        }
         if (imageData != nullptr) {
             mOutputFormat->setBuffer("image-data", imageData);
             MediaImage2 *img = (MediaImage2*) imageData->data();
